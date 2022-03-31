@@ -8,6 +8,14 @@ import 'vuetify/styles';
 export default createVuetify({
     // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
     theme: {
+        variations: {
+            colors: [
+                'primary',
+                'secondary',
+            ],
+            lighten: 2,
+            darken: 2,
+        },
     },
     icons: {
         defaultSet: 'mdi',
