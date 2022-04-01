@@ -16,6 +16,13 @@ export default createVuetify({
             lighten: 2,
             darken: 2,
         },
+        themes: {
+            light: {
+                colors: {
+                    primary: '#0288d1',
+                },
+            },
+        },
     },
     icons: {
         defaultSet: 'mdi',

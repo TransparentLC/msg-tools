@@ -3,14 +3,16 @@
 
 <head>
     <meta charset="utf-8">
-    <link rel="icon" href="favicon.ico">
+    <link rel="icon" href="favicon.png">
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link rel="manifest" href="manifest.json">
     <title>Akarin's Messaging Tools | 聊天消息处理工具</title>
 </head>
 
 <body>
     <div id="app"></div>
     <script type="module" src="./src/main.js"></script>
+    <script>navigator.serviceWorker && navigator.serviceWorker.register('sw.js')</script>
 </body>
 
 </html>

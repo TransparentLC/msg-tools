@@ -35,10 +35,10 @@
         center-active
         class="my-2"
     >
-        <v-tab :value="0">Base 编码</v-tab>
-        <v-tab :value="1">文本混淆</v-tab>
-        <v-tab :value="2">与佛论禅</v-tab>
-        <v-tab :value="3">消息加密</v-tab>
+        <v-tab>Base 编码</v-tab>
+        <v-tab>文本混淆</v-tab>
+        <v-tab>与佛论禅</v-tab>
+        <v-tab>消息加密</v-tab>
     </v-tabs>
 
     <v-window v-model="tab" class="my-2">
@@ -264,7 +264,7 @@ const {
     $toast,
 } = getCurrentInstance().appContext.config.globalProperties;
 
-const tab = ref(0);
+const tab = ref(null);
 const text = ref('');
 
 const pasteFromClipboard = () => navigator.clipboard.readText
