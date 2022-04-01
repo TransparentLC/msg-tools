@@ -1,5 +1,5 @@
 <template>
-    <div class="text-h5 text-primary">文本处理</div>
+    <div class="text-h5 text-primary mb-2">文本处理</div>
     <v-textarea
         v-model="text"
         label="需要处理的文本"
@@ -178,13 +178,16 @@
                         color="primary"
                         density="comfortable"
                         ref="privateKeyElement"
+                        :type="privateKeyHidden ? 'password' : 'text'"
+                        @focus="privateKeyHidden = false"
+                        @blur="privateKeyHidden = true"
                         v-model="privateKeyHex"
                         :rules="[keyValidate]"
                     ></v-text-field>
                 </v-col>
                 <v-col cols="12" sm="4">
                     <v-text-field
-                        label="自己的公钥"
+                        label="自己的公钥（点击复制）"
                         hint="根据私钥自动计算"
                         color="primary"
                         density="comfortable"
@@ -259,7 +262,6 @@ hexToBytes,
 
 const {
     $toast,
-    $dialog,
 } = getCurrentInstance().appContext.config.globalProperties;
 
 const tab = ref(0);
@@ -313,6 +315,7 @@ const keyValidate = v => !!v.match(/^[\da-f]{64}$/) || '密钥格式错误';
 const privateKey = ref(null);
 const privateKeyHex = ref('');
 const privateKeyElement = ref(null);
+const privateKeyHidden = ref(true);
 watch(privateKeyHex, newval => nextTick(() => privateKeyElement.value.validate().then(e => e.length || (privateKey.value = hexToBytes(newval)))));
 const publicKeyHex = computed(() => privateKey.value ? bytesToHex(X25519.getPublic(privateKey.value)) : null);
 /** @type {import('vue').Ref<Uint8Array>} */
@@ -326,6 +329,9 @@ const pbkdf2Salt = utf8Encoder.encode('akarin.dev');
 const pbkdf2Iteration = 65536;
 const generateKeyPair = () => privateKeyHex.value = bytesToHex(privateKey.value = crypto.getRandomValues(new Uint8Array(32)));
 const encryptText = () => {
+    if (!sharedKey.value) {
+        return $toast.warning('请输入有效的密钥');
+    }
     const t = performance.now();
     const shared = pbkdf2Sha256(sharedKey.value, pbkdf2Salt, pbkdf2Iteration, 64);
     const nonce = crypto.getRandomValues(new Uint8Array(12));
@@ -339,6 +345,9 @@ const encryptText = () => {
     $toast.success(`加密成功，耗时：${Math.round((performance.now() - t) * 100) / 100}ms`);
 };
 const decryptText = () => {
+    if (!sharedKey.value) {
+        return $toast.warning('请输入有效的密钥');
+    }
     const t = performance.now();
     const concatted = base85Decode(text.value);
     const nonce = concatted.subarray(0, 12);
@@ -349,7 +358,7 @@ const decryptText = () => {
     const ctx = new ChaCha20Poly1305(shared.subarray(0, 32), nonce, shared.subarray(32, 64));
     const decrypted = ctx.decrypt(encrypted);
     if (!ctx.verify(mac)) {
-        return $toast.error('解密失败，请检查密钥是否正确及密文是否保持完整未被篡改');
+        return $toast.error('解密失败，请检查密钥及密文是否正确且保持完整未被篡改');
     }
     text.value = utf8Decoder.decode(decrypted);
     $toast.success(`解密成功，耗时：${Math.round((performance.now() - t) * 100) / 100}ms`);

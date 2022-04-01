@@ -29,20 +29,10 @@
                 stacked
                 fixed-tabs
                 style="width:100%"
+                :model-value="tabs.findIndex(e => e.to === $route.path)"
             >
-                <v-tab to="/text">
-                    <v-icon :icon="mdiFormTextbox" size="x-large"></v-icon>
-                    文本处理
-                </v-tab>
-
-                <v-tab to="/image">
-                    <v-icon :icon="mdiImageOutline" size="x-large"></v-icon>
-                    图片处理
-                </v-tab>
-
-                <v-tab to="/about">
-                    <v-icon :icon="mdiInformationOutline" size="x-large"></v-icon>
-                    &#x3000;关于&#x3000;
+                <v-tab v-for="item in tabs" :key="item.to" :to="item.to">
+                    <v-icon :icon="item.icon" size="x-large"></v-icon>{{ item.text }}
                 </v-tab>
             </v-tabs>
         </v-footer>
@@ -50,9 +40,28 @@
 </template>
 
 <script setup>
+import { reactive } from 'vue';
 import {
     mdiFormTextbox,
     mdiImageOutline,
     mdiInformationOutline,
 } from '@mdi/js';
+
+const tabs = reactive([
+    {
+        icon: mdiFormTextbox,
+        text: '文本处理',
+        to: '/text',
+    },
+    {
+        icon: mdiImageOutline,
+        text: '图片处理',
+        to: '/image',
+    },
+    {
+        icon: mdiInformationOutline,
+        text: '　关于　',
+        to: '/about',
+    },
+]);
 </script>
