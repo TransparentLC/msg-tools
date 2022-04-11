@@ -33,6 +33,7 @@
                     density="comfortable"
                     v-model="paramsText"
                     hide-details
+                    @click="copyParams"
                 ></v-text-field>
             </v-col>
         </v-row>
@@ -45,7 +46,7 @@
         <p class="my-2">如果需要还原的图片经过了缩放或压缩，还原后的图片会有格子形状的痕迹，这是正常现象。</p>
     </div>
 
-    <input type="file" accept="image/*" ref="imageInput" style="display:none">
+    <input type="file" ref="imageInput" style="display:none">
     <a :href="imageUrl" ref="imageSave" :download="imageName" style="display:none"></a>
 </template>
 
@@ -164,4 +165,6 @@ const obfuscateImage = async invert => {
     imageSrc.value = imageResult;
     imageUrl.value = blobUrl;
 };
+
+const copyParams = () => paramsText.value && navigator.clipboard.writeText(paramsText.value).then(() => $toast.info('已将处理参数复制到剪贴板'));
 </script>

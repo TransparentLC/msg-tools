@@ -160,8 +160,8 @@
             </v-row>
             <v-divider class="my-4"></v-divider>
             <div class="text-body-1">
-                <p class="my-2">“与佛论禅”是 <a href="https://www.keyfc.net/" target="_blank" rel="noopener noreferrer">KeyFansClub</a> 论坛的用户创造的编码方式，原版工具在<a href="https://www.keyfc.net/bbs/tools/tudoucode.aspx" target="_blank" rel="noopener noreferrer">这里</a>。</p>
-                <p class="my-2">编码方式参考自<a href="https://github.com/lersh/TudouCode/blob/master/TudouSharp/Tudou.cs" target="_blank" rel="noopener noreferrer">这里</a>，简单的介绍如下：</p>
+                <p class="my-2">“与佛论禅”是 <a class="text-secondary" href="https://www.keyfc.net/" target="_blank" rel="noopener noreferrer">KeyFansClub</a> 论坛的用户创造的编码方式，原版工具在<a class="text-secondary" href="https://www.keyfc.net/bbs/tools/tudoucode.aspx" target="_blank" rel="noopener noreferrer">这里</a>。</p>
+                <p class="my-2">编码方式参考自<a class="text-secondary" href="https://github.com/lersh/TudouCode/blob/master/TudouSharp/Tudou.cs" target="_blank" rel="noopener noreferrer">这里</a>，简单的介绍如下：</p>
                 <ol class="my-2 pl-6">
                     <li>预定义两个数组，数组 A 包含 128 个汉字，数组 B 包含 12 个汉字。</li>
                     <li>对文本的 UTF-16 LE 编码使用 <abbr title="Mode: CBC, Key: XDXDtudou@KeyFansClub^_^Encode!! IV: Potato@Key@_@=_= Padding: PKCS #7">AES 算法</abbr>加密。</li>
@@ -226,7 +226,7 @@
                     <li>加密后的消息按照顺序由 12 字节的随机数、16 字节的认证码和加密后的消息正文组成，最后使用 Base85 进行编码。</li>
                 </ol>
                 <p class="my-2">这套体制尝试实现前向保密，因此<strong>密钥对需要随用随弃</strong>。只要不泄露临时使用的私钥，即使将加密后的聊天记录公开（无论是主动或被动），他人也无法获得消息的明文内容。<strong>加密操作全部在前端完成，本工具不会保存或上传你的密钥对及消息内容。</strong></p>
-                <p class="my-2">如果你需要一个更加安全的加密方案，可以考虑使用 <a href="https://zh.wikipedia.org/wiki/PGP" target="_blank" rel="noopener noreferrer">PGP</a>。但是 PGP 不支持前向保密，私钥将被长期使用且需要小心保护，否则被截获的所有通信内容都可以使用泄漏的私钥解密。另一个缺点是，一条带有签名的 PGP 加密消息实在是太长了……即使是最短的消息也会占据你的大半个手机屏幕。</p>
+                <p class="my-2">如果你需要一个更加安全的加密方案，可以考虑使用 <a class="text-secondary" href="https://zh.wikipedia.org/wiki/PGP" target="_blank" rel="noopener noreferrer">PGP</a>。但是 PGP 不支持前向保密，私钥将被长期使用且需要小心保护，否则被截获的所有通信内容都可以使用泄漏的私钥解密。另一个缺点是，一条带有签名的 PGP 加密消息实在是太长了……即使是最短的消息也会占据你的大半个手机屏幕。</p>
             </div>
         </v-window-item>
     </v-window>
