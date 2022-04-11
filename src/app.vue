@@ -1,5 +1,5 @@
 <template>
-    <v-app>
+    <v-app :theme="theme" style="min-height:100vh">
         <v-app-bar color="primary">
             <v-app-bar-title>聊天消息处理工具</v-app-bar-title>
         </v-app-bar>
@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+import { ref, reactive } from 'vue';
 import {
     mdiFormTextbox,
     mdiImageOutline,
@@ -64,4 +64,8 @@ const tabs = reactive([
         to: '/about',
     },
 ]);
+
+const themeMatch = matchMedia('(prefers-color-scheme: dark)');
+const theme = ref(themeMatch.matches ? 'dark' : 'light');
+themeMatch.addListener(e => theme.value = e.matches ? 'dark' : 'light');
 </script>
