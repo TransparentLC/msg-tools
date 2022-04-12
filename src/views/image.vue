@@ -11,31 +11,45 @@
             :transition="null"
         ></v-img>
         <v-row dense class="my-2">
-            <v-col cols="6">
-                <v-btn color="primary" block @click="obfuscateImage(false)">
-                    <v-icon :icon="mdiArrangeSendToBack"></v-icon>打乱图片
-                </v-btn>
-            </v-col>
-            <v-col cols="6">
-                <v-btn color="primary" block @click="obfuscateImage(true)">
-                    <v-icon :icon="mdiArrangeBringToFront"></v-icon>还原图片
-                </v-btn>
-            </v-col>
-            <v-col cols="12">
-                <v-btn color="primary" block @click="imageSave.click()">
-                    <v-icon :icon="mdiFileImageOutline"></v-icon>保存处理后的图片
-                </v-btn>
-            </v-col>
-            <v-col cols="12">
-                <v-text-field
-                    label="处理参数"
-                    color="primary"
-                    density="comfortable"
-                    v-model="paramsText"
-                    hide-details
-                    @click="copyParams"
-                ></v-text-field>
-            </v-col>
+            <template v-if="processing">
+                <v-col cols="12">
+                    <div class="d-flex justify-center align-center">
+                        <v-progress-circular
+                            indeterminate
+                            color="primary"
+                            class="mr-2"
+                        ></v-progress-circular>
+                        <span class="text-medium-emphasis">处理中……</span>
+                    </div>
+                </v-col>
+            </template>
+            <template v-else>
+                <v-col cols="6">
+                    <v-btn color="primary" block @click="obfuscateImage(false)">
+                        <v-icon :icon="mdiArrangeSendToBack"></v-icon>打乱图片
+                    </v-btn>
+                </v-col>
+                <v-col cols="6">
+                    <v-btn color="primary" block @click="obfuscateImage(true)">
+                        <v-icon :icon="mdiArrangeBringToFront"></v-icon>还原图片
+                    </v-btn>
+                </v-col>
+                <v-col cols="12">
+                    <v-btn color="primary" block @click="imageSave.click()">
+                        <v-icon :icon="mdiFileImageOutline"></v-icon>保存处理后的图片
+                    </v-btn>
+                </v-col>
+                <v-col cols="12">
+                    <v-text-field
+                        label="处理参数（点击复制）"
+                        color="primary"
+                        density="comfortable"
+                        v-model="paramsText"
+                        hide-details
+                        @click="copyParams"
+                    ></v-text-field>
+                </v-col>
+            </template>
         </v-row>
     </template>
     <v-divider class="my-4"></v-divider>
@@ -70,6 +84,7 @@ const {
 } = getCurrentInstance().appContext.config.globalProperties;
 
 const paramsText = ref('');
+const processing = ref(false);
 
 /** @type {import('vue').Ref<Image>} */
 const imageSrc = ref(null);
@@ -132,6 +147,8 @@ const obfuscateImage = async invert => {
             ['h', height],
         ])).toString();
     }
+    processing.value = true;
+
     const image = await resizeImage(imageSrc.value, width, height);
     const tileWidth = width >> 4;
     const tileHeight = height >> 4;
@@ -164,6 +181,8 @@ const obfuscateImage = async invert => {
     });
     imageSrc.value = imageResult;
     imageUrl.value = blobUrl;
+
+    processing.value = false;
 };
 
 const copyParams = () => paramsText.value && navigator.clipboard.writeText(paramsText.value).then(() => $toast.info('已将处理参数复制到剪贴板'));
