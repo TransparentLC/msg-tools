@@ -182,7 +182,7 @@
                         @focus="privateKeyHidden = false"
                         @blur="privateKeyHidden = true"
                         v-model="privateKeyHex"
-                        :rules="[keyValidate]"
+                        :rules="[keyValidateRule]"
                     ></v-text-field>
                 </v-col>
                 <v-col cols="12" sm="4">
@@ -203,7 +203,7 @@
                         density="comfortable"
                         ref="otherKeyElement"
                         v-model="otherKeyHex"
-                        :rules="[keyValidate]"
+                        :rules="[keyValidateRule]"
                     ></v-text-field>
                 </v-col>
                 <v-col cols="12" sm="4">
@@ -309,20 +309,18 @@ const tudouDecodeButton = () => {
     }
 };
 
-
-const keyValidate = v => !!v.match(/^[\da-f]{64}$/) || '密钥格式错误';
+const keyValidate = v => !!v.match(/^[\da-f]{64}$/);
+const keyValidateRule = v => keyValidate(v) || '密钥格式错误';
 /** @type {import('vue').Ref<Uint8Array>} */
 const privateKey = ref(null);
 const privateKeyHex = ref('');
-const privateKeyElement = ref(null);
 const privateKeyHidden = ref(true);
-watch(privateKeyHex, newval => nextTick(() => privateKeyElement.value.validate().then(e => e.length || (privateKey.value = hexToBytes(newval)))));
+watch(privateKeyHex, newval => nextTick(() => keyValidate(newval) && (privateKey.value = hexToBytes(newval))));
 const publicKeyHex = computed(() => privateKey.value ? bytesToHex(X25519.getPublic(privateKey.value)) : null);
 /** @type {import('vue').Ref<Uint8Array>} */
 const otherKey = ref(null);
 const otherKeyHex = ref('');
-const otherKeyElement = ref(null);
-watch(otherKeyHex, newval => nextTick(() => otherKeyElement.value.validate().then(e => e.length || (otherKey.value = hexToBytes(newval)))));
+watch(otherKeyHex, newval => nextTick(() => keyValidate(newval) && (otherKey.value = hexToBytes(newval))));
 const sharedKey = computed(() => privateKey.value && otherKey.value ? X25519.getShared(privateKey.value, otherKey.value) : null);
 
 const pbkdf2Salt = utf8Encoder.encode('akarin.dev');
