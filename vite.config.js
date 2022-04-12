@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vuetify from '@vuetify/vite-plugin';
@@ -35,12 +36,6 @@ export default defineConfig({
                 minifyCSS: true,
                 minifyJS: true,
                 minifyURLs: false,
-            },
-            inject: {
-                injectData: {
-                    // externalStylesheet,
-                    // externalScript,
-                },
             },
         }) : noop,
     ],
@@ -94,5 +89,11 @@ export default defineConfig({
                 }),
             ],
         },
+    },
+    define: {
+        __BUILD_TIME__: `"${(new Date).toISOString()}"`,
+        __VUE_VERSION__: `"Vue ${JSON.parse(fs.readFileSync('./node_modules/vue/package.json', {encoding: 'utf-8'})).version}"`,
+        __VITE_VERSION__: `"Vite ${JSON.parse(fs.readFileSync('./node_modules/vite/package.json', {encoding: 'utf-8'})).version}"`,
+        __VUETIFY_VERSION__: `"Vuetify ${JSON.parse(fs.readFileSync('./node_modules/vuetify/package.json', {encoding: 'utf-8'})).version}"`,
     },
 });

@@ -4,6 +4,7 @@
         v-model="text"
         label="需要处理的文本"
         row="6"
+        variant="contained"
         counter
         no-resize
         hide-details
@@ -172,7 +173,13 @@
         </v-window-item>
         <v-window-item>
             <v-row dense>
-                <v-col cols="12" sm="4">
+                <v-col cols="6">
+                    <v-btn color="primary" block @click="encryptText">消息加密</v-btn>
+                </v-col>
+                <v-col cols="6">
+                    <v-btn color="primary" block @click="decryptText">消息解密</v-btn>
+                </v-col>
+                <v-col cols="12">
                     <v-text-field
                         label="自己的私钥"
                         color="primary"
@@ -182,38 +189,45 @@
                         @focus="privateKeyHidden = false"
                         @blur="privateKeyHidden = true"
                         v-model="privateKeyHex"
-                        :rules="[keyValidateRule]"
-                    ></v-text-field>
+                        hide-details
+                    >
+                        <template #append>
+                            <v-btn
+                                color="primary"
+                                variant="text"
+                                @click="generateKeyPair"
+                            >生成</v-btn>
+                        </template>
+                    </v-text-field>
                 </v-col>
-                <v-col cols="12" sm="4">
+                <v-col cols="12" sm="6">
                     <v-text-field
-                        label="自己的公钥（点击复制）"
+                        label="自己的公钥"
                         hint="根据私钥自动计算"
                         color="primary"
                         density="comfortable"
                         readonly
                         v-model="publicKeyHex"
-                        @click="copyPublicKey"
-                    ></v-text-field>
+                        hide-details
+                    >
+                        <template #append>
+                            <v-btn
+                                color="primary"
+                                variant="text"
+                                @click="copyPublicKey"
+                            >复制</v-btn>
+                        </template>
+                    </v-text-field>
                 </v-col>
-                <v-col cols="12" sm="4">
+                <v-col cols="12" sm="6">
                     <v-text-field
                         label="对方的公钥"
                         color="primary"
                         density="comfortable"
                         ref="otherKeyElement"
                         v-model="otherKeyHex"
-                        :rules="[keyValidateRule]"
+                        hide-details
                     ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="4">
-                    <v-btn color="primary" block @click="generateKeyPair">生成密钥对</v-btn>
-                </v-col>
-                <v-col cols="6" sm="4">
-                    <v-btn color="primary" block @click="encryptText">消息加密</v-btn>
-                </v-col>
-                <v-col cols="6" sm="4">
-                    <v-btn color="primary" block @click="decryptText">消息解密</v-btn>
                 </v-col>
             </v-row>
             <v-divider class="my-4"></v-divider>
@@ -310,7 +324,6 @@ const tudouDecodeButton = () => {
 };
 
 const keyValidate = v => !!v.match(/^[\da-f]{64}$/);
-const keyValidateRule = v => keyValidate(v) || '密钥格式错误';
 /** @type {import('vue').Ref<Uint8Array>} */
 const privateKey = ref(null);
 const privateKeyHex = ref('');
@@ -321,7 +334,18 @@ const publicKeyHex = computed(() => privateKey.value ? bytesToHex(X25519.getPubl
 const otherKey = ref(null);
 const otherKeyHex = ref('');
 watch(otherKeyHex, newval => nextTick(() => keyValidate(newval) && (otherKey.value = hexToBytes(newval))));
-const sharedKey = computed(() => privateKey.value && otherKey.value ? X25519.getShared(privateKey.value, otherKey.value) : null);
+
+/** @type {Uint8Array} */
+let sharedKeyDerived;
+const sharedKey = computed(() => {
+    if (privateKey.value && otherKey.value) {
+        if (!keyValidate(privateKeyHex.value)) privateKeyHex.value = bytesToHex(privateKey.value);
+        if (!keyValidate(otherKeyHex.value)) otherKeyHex.value = bytesToHex(otherKey.value);
+        sharedKeyDerived = null;
+        return X25519.getShared(privateKey.value, otherKey.value);
+    }
+    return null;
+});
 
 const pbkdf2Salt = utf8Encoder.encode('akarin.dev');
 const pbkdf2Iteration = 65536;
@@ -331,9 +355,11 @@ const encryptText = () => {
         return $toast.warning('请输入有效的密钥');
     }
     const t = performance.now();
-    const shared = pbkdf2Sha256(sharedKey.value, pbkdf2Salt, pbkdf2Iteration, 64);
+    if (!sharedKeyDerived) {
+        sharedKeyDerived = pbkdf2Sha256(sharedKey.value, pbkdf2Salt, pbkdf2Iteration, 64);
+    }
     const nonce = crypto.getRandomValues(new Uint8Array(12));
-    const ctx = new ChaCha20Poly1305(shared.subarray(0, 32), nonce, shared.subarray(32, 64));
+    const ctx = new ChaCha20Poly1305(sharedKeyDerived.subarray(0, 32), nonce, sharedKeyDerived.subarray(32, 64));
     const encrypted = ctx.encrypt(utf8Encoder.encode(text.value));
     const concatted = new Uint8Array(encrypted.length + 12 + 16);
     concatted.set(nonce);
@@ -347,13 +373,14 @@ const decryptText = () => {
         return $toast.warning('请输入有效的密钥');
     }
     const t = performance.now();
+    if (!sharedKeyDerived) {
+        sharedKeyDerived = pbkdf2Sha256(sharedKey.value, pbkdf2Salt, pbkdf2Iteration, 64);
+    }
     const concatted = base85Decode(text.value);
     const nonce = concatted.subarray(0, 12);
     const mac = concatted.subarray(12, 12 + 16);
     const encrypted = concatted.subarray(12 + 16);
-    /** @type {Uint8Array} */
-    const shared = pbkdf2Sha256(sharedKey.value, pbkdf2Salt, pbkdf2Iteration, 64);
-    const ctx = new ChaCha20Poly1305(shared.subarray(0, 32), nonce, shared.subarray(32, 64));
+    const ctx = new ChaCha20Poly1305(sharedKeyDerived.subarray(0, 32), nonce, sharedKeyDerived.subarray(32, 64));
     const decrypted = ctx.decrypt(encrypted);
     if (!ctx.verify(mac)) {
         return $toast.error('解密失败，请检查密钥及密文是否正确且保持完整未被篡改');

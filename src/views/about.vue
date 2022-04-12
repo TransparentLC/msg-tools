@@ -24,9 +24,42 @@
             </div>
         </v-card>
         <p class="my-2">你可以在<a class="text-secondary" href="https://github.com/TransparentLC/msg-tools" target="_blank" rel="noopener noreferrer">这里</a>查看源代码。</p>
+        <p class="my-2" v-for="item, index in badges" :key="index">
+            <small
+                class="py-1 px-2"
+                style="color:#fff;border-radius:3px 0 0 3px;background-color:#555"
+            >{{ item.label }}</small>
+            <small
+                class="py-1 px-2"
+                style="color:#fff;border-radius:0 3px 3px 0"
+                :style="{
+                    'background-color': item.color,
+                }"
+            >{{ item.content }}</small>
+        </p>
     </div>
 </template>
 
 <script setup>
-
+const badges = [
+    {
+        label: 'Build Time',
+        content: (() => {
+            const d = new Date(__BUILD_TIME__);
+            const p = e => `${e}`.padStart(2, 0);
+            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+        })(),
+        color: '#f48',
+    },
+    {
+        label: 'Build With',
+        content: `${__VUE_VERSION__} + ${__VITE_VERSION__}`,
+        color: '#4b8',
+    },
+    {
+        label: 'Build With',
+        content: __VUETIFY_VERSION__,
+        color: '#16b',
+    },
+];
 </script>

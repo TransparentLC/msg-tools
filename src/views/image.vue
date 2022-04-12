@@ -41,13 +41,21 @@
                 </v-col>
                 <v-col cols="12">
                     <v-text-field
-                        label="处理参数（点击复制）"
+                        label="处理参数"
                         color="primary"
                         density="comfortable"
                         v-model="paramsText"
                         hide-details
-                        @click="copyParams"
-                    ></v-text-field>
+                        class="flex-grow mr-2"
+                    >
+                        <template #append>
+                            <v-btn
+                                color="primary"
+                                variant="text"
+                                @click="copyParams"
+                            >复制</v-btn>
+                        </template>
+                    </v-text-field>
                 </v-col>
             </template>
         </v-row>
