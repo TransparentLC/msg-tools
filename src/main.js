@@ -5,7 +5,7 @@ import router from './router/index.js';
 import snackbar from './plugins/snackbar.js';
 // import dialog from './plugins/dialog';
 
-createApp(app)
+const vm = createApp(app)
     .use(router)
     .use(vuetify)
     .use(snackbar, {
@@ -32,3 +32,12 @@ consoleBadge('Author', 'TransparentLC', '#f84');
 consoleBadge('Build Time', __BUILD_TIME__, '#f48');
 consoleBadge('Build With', `${__VUE_VERSION__} + ${__VITE_VERSION__}`, '#4b8');
 consoleBadge('Build With', __VUETIFY_VERSION__, '#16b');
+
+navigator.serviceWorker &&
+navigator.serviceWorker.register('sw.js').then(r => r.addEventListener(
+    'updatefound',
+    () => vm.$toast('检测到更新，刷新以应用更改', {
+        buttonText: '刷新',
+        onClickButton: () => location.reload(),
+    }),
+));
