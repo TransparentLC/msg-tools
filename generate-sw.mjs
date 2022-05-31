@@ -23,7 +23,7 @@ await fs.writeFile('dist/manifest.json', JSON.stringify(JSON.parse(await fs.read
 const cacheName = `akarin-msg-tools-${Date.now()}`;
 const cacheFiles = [
     '.',
-    'favicon.png',
+    'icon-1024px.png',
     'https://avatars.githubusercontent.com/u/47057319?s=128',
     ...(await fs.readdir('dist/assets')).map(e => `assets/${e}`),
 ];
