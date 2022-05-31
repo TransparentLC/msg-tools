@@ -10,7 +10,7 @@ export default {
      */
     install: (app, pluginConfig) => {
         const el = document.createElement('div');
-        document.body.appendChild(el);
+        el.style.position = 'absolute';
         const vm = createApp(dialog)
             .use(pluginConfig.vuetify)
             .mount(el);

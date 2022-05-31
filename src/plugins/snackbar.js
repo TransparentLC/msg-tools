@@ -10,6 +10,7 @@ export default {
      */
     install: (app, pluginConfig) => {
         const el = document.createElement('div');
+        el.style.position = 'absolute';
         document.body.appendChild(el);
         const vm = createApp(snackbar)
             .use(pluginConfig.vuetify)
