@@ -1,1 +1,1 @@
-{"name":"Akarin's Messaging Tools","description":"聊天消息处理工具。","start_url":".","theme_color":"#0288d1","background_color":"#fff","display":"standalone","icons":[{"src":"icon-1024px.png","sizes":"1024x1024","type":"image/png"},{"src":"icon-1024px.webp","sizes":"1024x1024","type":"image/webp"}]}
+{"name":"Akarin's Messaging Tools","short_name":"AMT","description":"聊天消息处理工具。","start_url":".","theme_color":"#0288d1","background_color":"#fff","display":"standalone","icons":[{"src":"icon-1024px.png","sizes":"1024x1024","type":"image/png"}]}
