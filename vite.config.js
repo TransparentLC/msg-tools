@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import vuetify from '@vuetify/vite-plugin';
+import vuetify from 'vite-plugin-vuetify';
 import { createHtmlPlugin } from 'vite-plugin-html';
 import autoprefixer from 'autoprefixer';
 import { visualizer } from 'rollup-plugin-visualizer';

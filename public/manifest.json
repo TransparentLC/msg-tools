@@ -7,14 +7,14 @@
     "display": "standalone",
     "icons": [
         {
-            "src": "icon-1024px.webp",
-            "sizes": "1024x1024",
-            "type": "image/webp"
-        },
-        {
             "src": "icon-1024px.png",
             "sizes": "1024x1024",
             "type": "image/png"
+        },
+        {
+            "src": "icon-1024px.webp",
+            "sizes": "1024x1024",
+            "type": "image/webp"
         }
     ]
 }
