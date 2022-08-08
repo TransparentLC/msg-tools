@@ -56,6 +56,12 @@
                             >复制</v-btn>
                         </template>
                     </v-text-field>
+                    <v-switch
+                        v-model="useWebGL"
+                        color="primary"
+                        label="使用 WebGL（实验性功能，处理速度更快，可能不适用于 Firefox）"
+                        hide-details
+                    ></v-switch>
                 </v-col>
             </template>
         </v-row>
@@ -93,6 +99,7 @@ const {
 
 const paramsText = ref('');
 const processing = ref(false);
+const useWebGL = ref(false);
 
 /** @type {import('vue').Ref<Image>} */
 const imageSrc = ref(null);
@@ -104,6 +111,7 @@ const imageSave = ref(null);
 const imageName = ref('');
 watch(imageUrl, (newval, oldval) => URL.revokeObjectURL(oldval) || (imageName.value = Date.now()));
 onMounted(() => imageInput.value.onchange = async e => {
+    URL.revokeObjectURL(imageUrl.value);
     const imageObjectUrl = URL.createObjectURL(e.target.files[0]);
     /** @type {Image} */
     const image = await new Promise((resolve, reject) => {
@@ -113,15 +121,66 @@ onMounted(() => imageInput.value.onchange = async e => {
         i.reject = reject;
     });
     imageUrl.value = (imageSrc.value = image).src;
-    URL.revokeObjectURL(imageObjectUrl);
 });
 
 const obfuscateCanvas = document.createElement('canvas');
 const obfuscateCanvasCtx = obfuscateCanvas.getContext('2d');
+const obfuscateCanvasExperimental = document.createElement('canvas');
+const obfuscateCanvasWebGL = obfuscateCanvasExperimental.getContext('webgl', {
+    preserveDrawingBuffer: true,
+});
+const vertexShader = obfuscateCanvasWebGL.createShader(obfuscateCanvasWebGL.VERTEX_SHADER);
+const fragmentShader = obfuscateCanvasWebGL.createShader(obfuscateCanvasWebGL.FRAGMENT_SHADER);
+const program = obfuscateCanvasWebGL.createProgram();
+// precision mediump float;
+// attribute vec2 a_Position;
+// attribute vec2 a_Uv;
+// varying vec2 v_Uv;
+// void main(){
+//     gl_Position = vec4(a_Position, 0, 1);
+//     v_Uv = a_Uv;
+// }
+obfuscateCanvasWebGL.shaderSource(vertexShader, 'precision mediump float;attribute vec2 a_Position;attribute vec2 a_Uv;varying vec2 v_Uv;void main(){gl_Position=vec4(a_Position,0,1);v_Uv=a_Uv;}');
+obfuscateCanvasWebGL.compileShader(vertexShader);
+// precision mediump float;
+// uniform sampler2D u_Texture;
+// varying vec2 v_Uv;
+// void main(){
+//     gl_FragColor = texture2D(u_Texture, v_Uv);
+//     gl_FragColor.rgb *= gl_FragColor.a;
+// }
+obfuscateCanvasWebGL.shaderSource(fragmentShader, 'precision mediump float;uniform sampler2D u_Texture;varying vec2 v_Uv;void main(){gl_FragColor=texture2D(u_Texture,v_Uv);gl_FragColor.rgb*=gl_FragColor.a;}');
+obfuscateCanvasWebGL.compileShader(fragmentShader);
+obfuscateCanvasWebGL.attachShader(program, vertexShader);
+obfuscateCanvasWebGL.attachShader(program, fragmentShader);
+obfuscateCanvasWebGL.linkProgram(program);
+obfuscateCanvasWebGL.useProgram(program);
+const u_Texture = obfuscateCanvasWebGL.getUniformLocation(program, 'u_Texture');
+const a_Position = obfuscateCanvasWebGL.getAttribLocation(program, 'a_Position');
+const a_Uv = obfuscateCanvasWebGL.getAttribLocation(program, 'a_Uv');
+obfuscateCanvasWebGL.enableVertexAttribArray(a_Position);
+obfuscateCanvasWebGL.enableVertexAttribArray(a_Uv);
+const buffer = obfuscateCanvasWebGL.createBuffer();
+obfuscateCanvasWebGL.bindBuffer(obfuscateCanvasWebGL.ARRAY_BUFFER, buffer);
+obfuscateCanvasWebGL.vertexAttribPointer(a_Position, 2, obfuscateCanvasWebGL.FLOAT, false, 16, 0);
+obfuscateCanvasWebGL.vertexAttribPointer(a_Uv, 2, obfuscateCanvasWebGL.FLOAT, false, 16, 8);
+const texture = obfuscateCanvasWebGL.createTexture();
+obfuscateCanvasWebGL.activeTexture(obfuscateCanvasWebGL.TEXTURE0);
+obfuscateCanvasWebGL.bindTexture(obfuscateCanvasWebGL.TEXTURE_2D, texture);
+obfuscateCanvasWebGL.texParameteri(obfuscateCanvasWebGL.TEXTURE_2D, obfuscateCanvasWebGL.TEXTURE_MAG_FILTER, obfuscateCanvasWebGL.LINEAR);
+obfuscateCanvasWebGL.texParameteri(obfuscateCanvasWebGL.TEXTURE_2D, obfuscateCanvasWebGL.TEXTURE_MIN_FILTER, obfuscateCanvasWebGL.LINEAR);
+obfuscateCanvasWebGL.texParameteri(obfuscateCanvasWebGL.TEXTURE_2D, obfuscateCanvasWebGL.TEXTURE_WRAP_S, obfuscateCanvasWebGL.CLAMP_TO_EDGE);
+obfuscateCanvasWebGL.texParameteri(obfuscateCanvasWebGL.TEXTURE_2D, obfuscateCanvasWebGL.TEXTURE_WRAP_T, obfuscateCanvasWebGL.CLAMP_TO_EDGE);
+obfuscateCanvasWebGL.uniform1i(u_Texture, 0);
+const coordPos = (x, y, w, h) => [x / w * 2 - 1, 1 - y / h * 2];
+const coordUV = (x, y, w, h) => [x / w, y / h];
+
 /**
  * @param {Boolean} invert
  */
 const obfuscateImage = async invert => {
+    const t = performance.now();
+
     let width;
     let height;
     let rngState;
@@ -155,31 +214,64 @@ const obfuscateImage = async invert => {
             ['h', height],
         ])).toString();
     }
-    processing.value = true;
 
-    const image = await resizeImage(imageSrc.value, width, height);
+    processing.value = true;
     const tileWidth = width >> 4;
     const tileHeight = height >> 4;
-    obfuscateCanvas.width = width;
-    obfuscateCanvas.height = height;
-    obfuscateCanvasCtx.clearRect(0, 0, width, height);
-
     const mapping = generatePerm(tileWidth * tileHeight, xoshiro128ss(rngState));
     if (invert) {
         invertPerm(mapping);
     }
 
-    for (let i = 0; i < mapping.length; i++) {
-        const j = mapping[i];
-        obfuscateCanvasCtx.drawImage(
-            image,
-            (i % tileWidth) << 4, ((i / tileWidth) | 0) << 4, 16, 16,
-            (j % tileWidth) << 4, ((j / tileWidth) | 0) << 4, 16, 16,
-        );
+    /** @type {Blob} */
+    let blob;
+    if (useWebGL.value) {
+        const image = imageSrc.value;
+        obfuscateCanvasWebGL.texImage2D(obfuscateCanvasWebGL.TEXTURE_2D, 0, obfuscateCanvasWebGL.RGBA, obfuscateCanvasWebGL.RGBA, obfuscateCanvasWebGL.UNSIGNED_BYTE, image);
+        const m = 1 / tileWidth * image.width;
+        const n = 1 / tileHeight * image.height;
+        const data = [];
+
+        for (let i = 0; i < mapping.length; i++) {
+            const j = mapping[i];
+            const srcx = (i % tileWidth) / tileWidth * image.width;
+            const srcy = ((i / tileWidth) | 0) / tileHeight * image.height;
+            const dstx = (j % tileWidth) << 4;
+            const dsty = ((j / tileWidth) | 0) << 4;
+            const coordTL = [...coordPos(dstx,      dsty,      width, height), ...coordUV(srcx,     srcy,     image.width, image.height)];
+            const coordTR = [...coordPos(dstx + 16, dsty,      width, height), ...coordUV(srcx + m, srcy,     image.width, image.height)];
+            const coordBL = [...coordPos(dstx,      dsty + 16, width, height), ...coordUV(srcx,     srcy + n, image.width, image.height)];
+            const coordBR = [...coordPos(dstx + 16, dsty + 16, width, height), ...coordUV(srcx + m, srcy + n, image.width, image.height)];
+            data.push(
+                ...coordTL, ...coordTR, ...coordBL,
+                ...coordBR, ...coordTR, ...coordBL,
+            );
+        }
+        obfuscateCanvasWebGL.bufferData(obfuscateCanvasWebGL.ARRAY_BUFFER, new Float32Array(data), obfuscateCanvasWebGL.STATIC_DRAW);
+        obfuscateCanvasExperimental.width = width;
+        obfuscateCanvasExperimental.height = height;
+        obfuscateCanvasWebGL.viewport(0, 0, obfuscateCanvasExperimental.width, obfuscateCanvasExperimental.height);
+        obfuscateCanvasWebGL.drawArrays(obfuscateCanvasWebGL.TRIANGLES, 0, data.length / 4);
+
+        blob = await new Promise(resolve => obfuscateCanvasExperimental.toBlob(resolve));
+    } else {
+        const image = await resizeImage(imageSrc.value, width, height);
+
+        obfuscateCanvas.width = width;
+        obfuscateCanvas.height = height;
+        obfuscateCanvasCtx.clearRect(0, 0, width, height);
+        for (let i = 0; i < mapping.length; i++) {
+            const j = mapping[i];
+            obfuscateCanvasCtx.drawImage(
+                image,
+                (i % tileWidth) << 4, ((i / tileWidth) | 0) << 4, 16, 16,
+                (j % tileWidth) << 4, ((j / tileWidth) | 0) << 4, 16, 16,
+            );
+        }
+
+        blob = await new Promise(resolve => obfuscateCanvas.toBlob(resolve));
     }
 
-    /** @type {Blob} */
-    const blob = await new Promise(resolve => obfuscateCanvas.toBlob(resolve));
     const blobUrl = URL.createObjectURL(blob);
     const imageResult = await new Promise((resolve, reject) => {
         const i = new Image;
@@ -191,6 +283,8 @@ const obfuscateImage = async invert => {
     imageUrl.value = blobUrl;
 
     processing.value = false;
+
+    $toast.success(`处理成功，耗时：${Math.round((performance.now() - t) * 100) / 100}ms`);
 };
 
 const copyParams = () => paramsText.value && navigator.clipboard.writeText(paramsText.value).then(() => $toast.info('已将处理参数复制到剪贴板'));
