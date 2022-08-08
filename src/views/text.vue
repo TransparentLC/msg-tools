@@ -4,7 +4,7 @@
         v-model="text"
         label="需要处理的文本"
         row="6"
-        variant="contained"
+        variant="solo"
         counter
         no-resize
         hide-details
