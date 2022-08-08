@@ -59,7 +59,7 @@
                     <v-switch
                         v-model="useWebGL"
                         color="primary"
-                        label="使用 WebGL（实验性功能，处理速度更快，可能不适用于 Firefox）"
+                        label="使用 WebGL（实验性功能，处理速度更快）"
                         hide-details
                     ></v-switch>
                 </v-col>
