@@ -1,4 +1,9 @@
 import AES256 from './wasm-modules/aes256-wasm.esm.min.js';
+import {
+    generatePerm as generatePermWASM,
+    invertPerm as invertPermWASM,
+    coordArray as coordArrayWASM,
+} from './wasm-modules/rngperm-util.esm.js';
 
 export const utf8Encoder = new TextEncoder;
 export const utf8Decoder = new TextDecoder;
@@ -284,84 +289,6 @@ export const tudouDecode = data => {
     return utf16leDecode(AES256.utils.pkcs7Strip(tudouAES.decrypt(AES256.MODE_CBC, new Uint8Array(decodeBuffer))));
 };
 
-const resizeCanvas = document.createElement('canvas');
-const resizeCanvasCtx = resizeCanvas.getContext('2d');
-/**
- * @param {Image} img
- * @param {Number} width
- * @param {Number} height
- * @returns {Promise<Image>}
- */
-export const resizeImage = async (img, width, height) => {
-    resizeCanvas.width = width;
-    resizeCanvas.height = height;
-    resizeCanvasCtx.clearRect(0, 0, width, height);
-    resizeCanvasCtx.drawImage(img, 0, 0, width, height);
-    const blob = await new Promise(resolve => resizeCanvas.toBlob(resolve));
-    return await new Promise((resolve, reject) => {
-        const i = new Image;
-        i.src = URL.createObjectURL(blob);
-        i.onload = () => resolve(i);
-        i.onerror = reject;
-    });
-};
-
-/**
- * @param {{a: Number, b: Number, c: Number, d: Number}} state
- * @link https://stackoverflow.com/questions/521295#answer-47593316
- * @return {() => Number}
- */
-export const xoshiro128ss = state => () => {
-    let t = state.b << 9;
-    let r = state.a * 5;
-    r = (r << 7 | r >>> 25) * 9;
-    state.c ^= state.a;
-    state.d ^= state.b;
-    state.b ^= state.c;
-    state.a ^= state.d;
-    state.c ^= t;
-    state.d = state.d << 11 | state.d >>> 21;
-    return (r >>> 0) % 4294967296;
-};
-
-/**
- * @param {Number} length
- * @param {() => Number} rng
- * @returns {Number[]}
- */
-export const generatePerm = (length, rng) => {
-    const result = new Array(length);
-    for (let i = 0; i < length; i++) {
-        result[i] = i;
-    }
-    for (let i = length - 1; i >= 0; i--) {
-        const j = rng() % (i + 1);
-        [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
-}
-
-/**
- * @param {Number[]} perm
- */
-export const invertPerm = perm => {
-    const len = perm.length;
-    for (let i = 0; i < len; i++) {
-        let skip = false;
-        for (let c = perm[i]; c !== i; c = perm[c]) {
-            if (c <= i) {
-                skip = true;
-                break;
-            }
-        }
-        if (skip) {
-            continue;
-        }
-
-        let from = i;
-        let to = perm[i];
-        do {
-            [perm[to], from, to] = [from, to, perm[to]];
-        } while (from !== i);
-    }
-};
+export const generatePerm = generatePermWASM;
+export const invertPerm = invertPermWASM;
+export const coordArray = coordArrayWASM;

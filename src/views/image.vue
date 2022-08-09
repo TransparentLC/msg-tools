@@ -56,12 +56,6 @@
                             >复制</v-btn>
                         </template>
                     </v-text-field>
-                    <v-switch
-                        v-model="useWebGL"
-                        color="primary"
-                        label="使用 WebGL（实验性功能，处理速度更快）"
-                        hide-details
-                    ></v-switch>
                 </v-col>
             </template>
         </v-row>
@@ -69,9 +63,9 @@
     <v-divider class="my-4"></v-divider>
     <div class="text-body-1">
         <p class="my-2">使用<abbr title="xoshiro128**">伪随机数生成算法</abbr>，将图片以 16x16 的小块为单位打乱或还原。</p>
-        <p class="my-2">打乱图片前会随机生成种子，和图片的尺寸一起记录为<abbr title="s=<seed>&w=<width>&=<height>">处理参数</abbr>，请将处理参数和打乱后的图片一起发送。反之，输入打乱时使用的处理参数就可以将图片还原了。</p>
-        <p class="my-2">在处理前会对图片进行缩放，使其长度和宽度均为 16 的倍数（向下取整）。图片尺寸越大，则混淆/还原需要的时间也会越长。</p>
-        <p class="my-2">如果需要还原的图片经过了缩放或压缩，还原后的图片会有格子形状的痕迹，这是正常现象。</p>
+        <p class="my-2">打乱图片前会随机生成种子，和图片的尺寸（向下取整为 16 的倍数）一起记录为<abbr title="s=<seed>&w=<width>&=<height>">处理参数</abbr>，请将处理参数和打乱后的图片一起发送。反之，输入打乱时使用的处理参数就可以将图片还原了。</p>
+        <p class="my-2">为了保证处理速度，混淆/还原操作是使用 WebAssembly 和 WebGL 实现的。在桌面端处理一张 2560x1920 的图片的耗时为 500ms 左右。</p>
+        <p class="my-2">如果对打乱后的图片进行了额外的缩放或压缩，还原后的图片会有格子形状的痕迹，这是正常现象。</p>
     </div>
 
     <input type="file" ref="imageInput" style="display:none">
@@ -87,10 +81,9 @@ import {
     mdiOpenInNew,
 } from '@mdi/js';
 import {
-    resizeImage,
-    xoshiro128ss,
     generatePerm,
     invertPerm,
+    coordArray,
 } from '../util.js';
 
 const {
@@ -99,7 +92,6 @@ const {
 
 const paramsText = ref('');
 const processing = ref(false);
-const useWebGL = ref(false);
 
 /** @type {import('vue').Ref<Image>} */
 const imageSrc = ref(null);
@@ -124,11 +116,7 @@ onMounted(() => imageInput.value.onchange = async e => {
 });
 
 const obfuscateCanvas = document.createElement('canvas');
-const obfuscateCanvasCtx = obfuscateCanvas.getContext('2d');
-const obfuscateCanvasExperimental = document.createElement('canvas');
-const obfuscateCanvasWebGL = obfuscateCanvasExperimental.getContext('webgl', {
-    preserveDrawingBuffer: true,
-});
+const obfuscateCanvasWebGL = obfuscateCanvas.getContext('webgl');
 const vertexShader = obfuscateCanvasWebGL.createShader(obfuscateCanvasWebGL.VERTEX_SHADER);
 const fragmentShader = obfuscateCanvasWebGL.createShader(obfuscateCanvasWebGL.FRAGMENT_SHADER);
 const program = obfuscateCanvasWebGL.createProgram();
@@ -172,8 +160,6 @@ obfuscateCanvasWebGL.texParameteri(obfuscateCanvasWebGL.TEXTURE_2D, obfuscateCan
 obfuscateCanvasWebGL.texParameteri(obfuscateCanvasWebGL.TEXTURE_2D, obfuscateCanvasWebGL.TEXTURE_WRAP_S, obfuscateCanvasWebGL.CLAMP_TO_EDGE);
 obfuscateCanvasWebGL.texParameteri(obfuscateCanvasWebGL.TEXTURE_2D, obfuscateCanvasWebGL.TEXTURE_WRAP_T, obfuscateCanvasWebGL.CLAMP_TO_EDGE);
 obfuscateCanvasWebGL.uniform1i(u_Texture, 0);
-const coordPos = (x, y, w, h) => [x / w * 2 - 1, 1 - y / h * 2];
-const coordUV = (x, y, w, h) => [x / w, y / h];
 
 /**
  * @param {Boolean} invert
@@ -183,7 +169,7 @@ const obfuscateImage = async invert => {
 
     let width;
     let height;
-    let rngState;
+    let rngSeed;
     if (invert) {
         const params = new URLSearchParams(paramsText.value);
         if (!(
@@ -196,18 +182,11 @@ const obfuscateImage = async invert => {
         }
         width = parseInt(params.get('w'));
         height = parseInt(params.get('h'));
-        rngState = ['a', 'b', 'c', 'd'].reduce((acc, cur, idx) => {
-            acc[cur] = parseInt(params.get('s').substring(idx << 3, (idx + 1) << 3), 16);
-            return acc;
-        }, {});
+        rngSeed = new Uint32Array([0, 1, 2, 3].map(e => parseInt(params.get('s').substring(e << 3, (e + 1) << 3), 16)));
     } else {
         width = imageSrc.value.width & ~0xF;
         height = imageSrc.value.height & ~0xF;
-        const rngSeed = crypto.getRandomValues(new Uint32Array(4));
-        rngState = ['a', 'b', 'c', 'd'].reduce((acc, cur, idx) => {
-            acc[cur] = rngSeed[idx];
-            return acc;
-        }, {});
+        rngSeed = crypto.getRandomValues(new Uint32Array(4));
         paramsText.value = (new URLSearchParams([
             ['s', Array.from(rngSeed).map(e => e.toString(16).padStart(8, 0)).join('')],
             ['w', width],
@@ -218,68 +197,30 @@ const obfuscateImage = async invert => {
     processing.value = true;
     const tileWidth = width >> 4;
     const tileHeight = height >> 4;
-    const mapping = generatePerm(tileWidth * tileHeight, xoshiro128ss(rngState));
+    let mapping = generatePerm(rngSeed, tileWidth * tileHeight);
+    console.log([...mapping]);
     if (invert) {
-        invertPerm(mapping);
+        mapping = invertPerm(mapping);
+        console.log([...mapping]);
     }
 
+    const image = imageSrc.value;
+    const coord = coordArray(image.width, image.height, width, height, mapping);
+    obfuscateCanvasWebGL.texImage2D(obfuscateCanvasWebGL.TEXTURE_2D, 0, obfuscateCanvasWebGL.RGBA, obfuscateCanvasWebGL.RGBA, obfuscateCanvasWebGL.UNSIGNED_BYTE, image);
+    obfuscateCanvasWebGL.bufferData(obfuscateCanvasWebGL.ARRAY_BUFFER, coord, obfuscateCanvasWebGL.STATIC_DRAW);
+    obfuscateCanvas.width = width;
+    obfuscateCanvas.height = height;
+    obfuscateCanvasWebGL.viewport(0, 0, obfuscateCanvas.width, obfuscateCanvas.height);
+    obfuscateCanvasWebGL.drawArrays(obfuscateCanvasWebGL.TRIANGLES, 0, coord.length >> 2);
     /** @type {Blob} */
-    let blob;
-    if (useWebGL.value) {
-        const image = imageSrc.value;
-        obfuscateCanvasWebGL.texImage2D(obfuscateCanvasWebGL.TEXTURE_2D, 0, obfuscateCanvasWebGL.RGBA, obfuscateCanvasWebGL.RGBA, obfuscateCanvasWebGL.UNSIGNED_BYTE, image);
-        const m = 1 / tileWidth * image.width;
-        const n = 1 / tileHeight * image.height;
-        const data = [];
-
-        for (let i = 0; i < mapping.length; i++) {
-            const j = mapping[i];
-            const srcx = (i % tileWidth) / tileWidth * image.width;
-            const srcy = ((i / tileWidth) | 0) / tileHeight * image.height;
-            const dstx = (j % tileWidth) << 4;
-            const dsty = ((j / tileWidth) | 0) << 4;
-            const coordTL = [...coordPos(dstx,      dsty,      width, height), ...coordUV(srcx,     srcy,     image.width, image.height)];
-            const coordTR = [...coordPos(dstx + 16, dsty,      width, height), ...coordUV(srcx + m, srcy,     image.width, image.height)];
-            const coordBL = [...coordPos(dstx,      dsty + 16, width, height), ...coordUV(srcx,     srcy + n, image.width, image.height)];
-            const coordBR = [...coordPos(dstx + 16, dsty + 16, width, height), ...coordUV(srcx + m, srcy + n, image.width, image.height)];
-            data.push(
-                ...coordTL, ...coordTR, ...coordBL,
-                ...coordBR, ...coordTR, ...coordBL,
-            );
-        }
-        obfuscateCanvasWebGL.bufferData(obfuscateCanvasWebGL.ARRAY_BUFFER, new Float32Array(data), obfuscateCanvasWebGL.STATIC_DRAW);
-        obfuscateCanvasExperimental.width = width;
-        obfuscateCanvasExperimental.height = height;
-        obfuscateCanvasWebGL.viewport(0, 0, obfuscateCanvasExperimental.width, obfuscateCanvasExperimental.height);
-        obfuscateCanvasWebGL.drawArrays(obfuscateCanvasWebGL.TRIANGLES, 0, data.length / 4);
-
-        blob = await new Promise(resolve => obfuscateCanvasExperimental.toBlob(resolve));
-    } else {
-        const image = await resizeImage(imageSrc.value, width, height);
-
-        obfuscateCanvas.width = width;
-        obfuscateCanvas.height = height;
-        obfuscateCanvasCtx.clearRect(0, 0, width, height);
-        for (let i = 0; i < mapping.length; i++) {
-            const j = mapping[i];
-            obfuscateCanvasCtx.drawImage(
-                image,
-                (i % tileWidth) << 4, ((i / tileWidth) | 0) << 4, 16, 16,
-                (j % tileWidth) << 4, ((j / tileWidth) | 0) << 4, 16, 16,
-            );
-        }
-
-        blob = await new Promise(resolve => obfuscateCanvas.toBlob(resolve));
-    }
-
+    const blob = await new Promise(resolve => obfuscateCanvas.toBlob(resolve));
     const blobUrl = URL.createObjectURL(blob);
-    const imageResult = await new Promise((resolve, reject) => {
+    imageSrc.value = await new Promise((resolve, reject) => {
         const i = new Image;
         i.src = blobUrl;
         i.onload = () => resolve(i);
         i.onerror = reject;
-    });
-    imageSrc.value = imageResult;
+    });;
     imageUrl.value = blobUrl;
 
     processing.value = false;
