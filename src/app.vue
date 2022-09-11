@@ -24,7 +24,7 @@
             class="pa-0"
         >
             <v-tabs
-                background-color="primary"
+                bg-color="primary"
                 centered
                 stacked
                 fixed-tabs
