@@ -8,7 +8,6 @@
             class="my-2"
             max-height="360"
             :src="imageUrl"
-            :transition="null"
         ></v-img>
         <v-row dense class="my-2">
             <template v-if="processing">
@@ -198,10 +197,10 @@ const obfuscateImage = async invert => {
     const tileWidth = width >> 4;
     const tileHeight = height >> 4;
     let mapping = generatePerm(rngSeed, tileWidth * tileHeight);
-    console.log([...mapping]);
+    // console.log([...mapping]);
     if (invert) {
         mapping = invertPerm(mapping);
-        console.log([...mapping]);
+        // console.log([...mapping]);
     }
 
     const image = imageSrc.value;
